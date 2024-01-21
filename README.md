@@ -1,10 +1,11 @@
-# autogguf[.py] - Automatically convert HuggingFace models to GGUF
+# autogguf[.py]
+Automatically convert HuggingFace models to GGUF
 
 ## Pre-requisites
 
 - Python 3
 - huggingface_hub: `pip3 install huggingface_hub`
-- llama.cpp: `git clone https://github.com/ggerganov/llama.cpp`
+- llama.cpp: install or update with `./autogguf -u`
 
 ## Installation
 
@@ -21,7 +22,7 @@ $ ./autogguf -h
 $ ./autogguf -h
 usage: autogguf [-h] [--quants QUANTS] [--verbose] [--model-type MODEL_TYPE]
                 [--vocab-type VOCAB_TYPE] [--pad-vocab] [--skip-fp16]
-                [--skip-download] [--skip-upload] [--update-llama]
+                [--skip-download] [--skip-upload] [--no-accelerator] [--update-llama]
                 [--llama-path LLAMA_PATH] [--hf-user HF_USER] [--hf-token HF_TOKEN]
                 model_id
 
@@ -51,8 +52,11 @@ options:
                         Defaults to false.
   --skip-upload         Skip uploading converted files to HuggingFace Hub. Defaults
                         to false.
-  --update-llama, -u    Update the llama.cpp repo before converting. Defaults to
-                        false.
+  --no-accelerator, -n  Disable GPU acceleration for llama.cpp compilation. Only
+                        takes effect when installing or updating llama.cpp. Defaults
+                        to false.
+  --update-llama, -u    Update the llama.cpp repo before converting. Installs
+                        llama.cpp if llama-path doesn’t exist. Defaults to false.
   --llama-path LLAMA_PATH, -lp LLAMA_PATH
                         The path to the llama.cpp repo.
   --hf-user HF_USER     Your HuggingFace username for uploading converted models.
