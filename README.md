@@ -6,10 +6,19 @@
 - huggingface_hub: `pip3 install huggingface_hub`
 - llama.cpp: `git clone https://github.com/ggerganov/llama.cpp`
 
+## Installation
+
+```sh
+$ git clone https://github.com/brittlewis12/autogguf
+$ cd autogguf
+$ chmod +x autogguf
+$ ./autogguf -h
+```
+
 ## Usage
 
 ```sh
-./autogguf -h
+$ ./autogguf -h
 usage: autogguf [-h] [--quants QUANTS] [--verbose] [--model-type MODEL_TYPE]
                 [--vocab-type VOCAB_TYPE] [--pad-vocab] [--skip-fp16]
                 [--skip-download] [--skip-upload] [--update-llama]
