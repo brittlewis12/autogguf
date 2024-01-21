@@ -1,6 +1,8 @@
 # autogguf[.py]
 Automatically convert HuggingFace models to GGUF
 
+inspired by [mlabonne](https://twitter.com/maximelabonne/status/1746812715606348138)’s [AutoGGUF.ipynb](https://colab.research.google.com/drive/1P646NEg33BZy4BfLDNpTz0V0lwIU3CHu)
+
 ## Pre-requisites
 
 - Python 3
