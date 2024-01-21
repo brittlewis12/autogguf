@@ -22,7 +22,7 @@ def update_llama_cpp():
         accelerator = 'LLAMA_METAL=1' if platform.system() == 'Darwin' else 'LLAMA_CUBLAS=1'
 
     if not os.path.exists(LLAMA_PATH):
-        sh("git clone https://github.com/ggerganov/llama.cpp {LLAMA_PATH}")
+        sh(f"git clone https://github.com/ggerganov/llama.cpp {LLAMA_PATH}")
     sh(f"cd {LLAMA_PATH} && git pull && make clean && {accelerator} make")
     sh(f"pip3 install -r {LLAMA_PATH}/requirements.txt")
 
