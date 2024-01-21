@@ -1,0 +1,140 @@
+#!/usr/bin/env python3
+
+import subprocess
+import os
+import sys
+import argparse
+from huggingface_hub import snapshot_download, create_repo, HfApi
+
+def sh(command):
+    output = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if output.returncode != 0:
+        sys.stderr.write(f"Error: {output.stderr}\n")
+        exit(1)
+    elif args.verbose:
+        print(output.stdout)
+
+def update_llama_cpp():
+    # sh("git clone https://github.com/ggerganov/llama.cpp")
+    sh(f"cd {LLAMA_PATH} && git pull && make clean && LLAMA_METAL=1 make")
+    sh(f"pip3 install -r {LLAMA_PATH}/requirements.txt")
+
+def download_model():
+    sh(f"mkdir {MODEL_NAME}")
+    snapshot_download(repo_id=MODEL_ID, local_dir=f"./{MODEL_NAME}/", local_dir_use_symlinks=False)
+
+def convert_fp16(type="llama", vocab_type=None):
+    if type == "llama" or type == "mistral":
+        pad_vocab = " --pad-vocab" if args.pad_vocab else ""
+        vocab_type = f" --vocab-type {vocab_type}" if vocab_type != None else ""
+        sh(f"python3 {LLAMA_PATH}/convert.py {MODEL_NAME} --outtype f16 --outfile {FP16}{vocab_type}{pad_vocab}")
+    else:
+        sh(f"python3 {LLAMA_PATH}/convert-hf-to-gguf.py {MODEL_NAME} --outtype f16 --outfile {FP16}")
+
+# build importance matrix with FP16 model & a calibration dataset; required for `IQ2_*` or `Q2_K_S` quants
+def generate_imatrix():
+    sh(f"{LLAMA_PATH}/scripts/get-wikitext-2.sh && unzip wikitext-2-raw-v1.zip && rm wikitext-2-raw-v1.zip")
+    sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f wikitext-2-raw/wiki.train.raw -o {MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
+    sh(f"rm -rf wikitext-2-raw")
+
+# 🤗 Upload to HuggingFace Hub
+def upload_ggufs_to_hf():
+    token = args.hf_token or os.environ.get('HF_TOKEN')
+    api = HfApi(token=token)
+    repo_id = f"{args.hf_user}/{MODEL_NAME}-GGUF"
+
+    create_repo(
+        repo_id = repo_id,
+        repo_type="model",
+        exist_ok=True,
+        token=token
+    )
+
+    # TODO: Generate a README from a template!
+
+    # Upload only gguf files
+    api.upload_folder(
+        folder_path=MODEL_NAME,
+        repo_id=repo_id,
+        allow_patterns=f"*.gguf" # allow_patterns=f"*.gguf,README.md"
+    )
+
+NORMAL_QUANT_LEVELS = ["q2_k","q3_k_s","q3_k_m","q3_k_l","q4_0","q4_1","q4_k_s","q4_k_m","q5_0","q5_1","q5_k_s","q5_k_m","q6_k","q8_0"]
+IMATRIX_QUANT_LEVELS = ["iq2_xxs","iq2_xs","q2_k_s"]
+
+parser = argparse.ArgumentParser(description='convert HuggingFace models to GGUF, automatically.')
+
+# REQUIRED
+parser.add_argument('model_id', type=str, help='The HuggingFace model ID to convert. Required.')
+
+# OPTIONAL
+parser.add_argument('--quants', '-q', type=str, default='q2_k,q3_k_s,q3_k_m,q3_k_l,q4_k_s,q4_k_m,q5_k_s,q5_k_m,q6_k,q8_0', help='Comma-separated list of quant levels to convert. Defaults to all non-imatrix k-quants and 8_0.\nAll quantization levels: `q2_k`, `q2_k_s` `q3_k_l`, `q3_k_m`, `q3_k_s`, `q4_0`, `q4_1`, `q4_k_m`, `q4_k_s`, `q5_0`, `q5_1`, `q5_k_m`, `q5_k_s`, `q6_k`, `q8_0`, `iq2_xxs`, `iq2_xs`.')
+
+parser.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity.')
+parser.add_argument('--model-type', '-m', type=str, default='llama', help='The model architecture type. `llama` (default), `mistral`, or anything else.')
+parser.add_argument('--vocab-type', '-vt', type=str, default=None, help='The model vocabulary type: `spm`, `hfft`, `bpe`, or None (default). Ignored for model-type of `llama` or `mistral`.')
+parser.add_argument('--pad-vocab', '-pv', action='store_true', help='Pad the vocabulary in case of mismatches. Defaults to false.')
+parser.add_argument('--skip-fp16', action='store_true', help='Skip converting the model to FP16. Defaults to false.')
+parser.add_argument('--skip-download', action='store_true', help='Skip downloading the model to convert from HuggingFace Hub. Defaults to false.')
+parser.add_argument('--skip-upload', action='store_true', help='Skip uploading converted files to HuggingFace Hub. Defaults to false.')
+parser.add_argument('--update-llama', '-u', action='store_true', help='Update the llama.cpp repo before converting. Defaults to false.')
+parser.add_argument('--llama-path', '-lp',  type=str, default='~/code/llama.cpp', help='The path to the llama.cpp repo.')
+parser.add_argument('--hf-user', type=str, default='brittlewis12', help='Your HuggingFace username for uploading converted models.')
+parser.add_argument('--hf-token', type=str, default=None, help='Your HuggingFace API token for uploading converted models. Reads from `$HF_TOKEN` by default.')
+
+args = parser.parse_args()
+if args.verbose:
+    print(f"Got args: {args}\n")
+
+LLAMA_PATH = os.path.expanduser(args.llama_path)
+MODEL_ID = args.model_id # e.g. stabilityai/stablelm-2-zephyr-1_6b
+MODEL_NAME = MODEL_ID.split('/')[-1]
+FP16 = os.path.join(MODEL_NAME, f"{MODEL_NAME.lower()}.fp16.gguf")
+requested_quants = args.quants.replace(' ', '').split(',')
+
+quants = [ql for ql in requested_quants if ql in NORMAL_QUANT_LEVELS]
+imatrix_quants = [ql for ql in requested_quants if ql in IMATRIX_QUANT_LEVELS]
+
+if imatrix_quants != []:
+    print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)} and imatrix-required {', '.join(imatrix_quants)}\n")
+else:
+    print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)}\n")
+
+if args.update_llama:
+    update_llama_cpp()
+
+if args.verbose:
+    sh('pwd')
+
+if args.skip_download:
+    print('skipping download from HuggingFace Hub.')
+else:
+    download_model()
+    if args.verbose:
+        print(f"downloaded {MODEL_NAME}!")
+
+if args.skip_fp16:
+    print('skipping FP16 conversion.')
+else:
+    convert_fp16(type=args.model_type, vocab_type=args.vocab_type)
+
+if imatrix_quants != []:
+    generate_imatrix()
+
+# Qu-Qu-Qu-Quantize Time!
+# TODO: can this be paralellized...?
+# TODO: progress bar!
+for level in quants:
+    qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
+    sh(f"{LLAMA_PATH}/quantize {FP16} {qtype} {level}")
+
+for level in imatrix_quants:
+    qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
+    sh(f"{LLAMA_PATH}/quantize --imatrix {MODEL_NAME}.imatrix {FP16} {qtype} {level}")
+
+if args.skip_upload:
+    print("skipping upload to HuggingFace Hub.")
+else:
+    upload_ggufs_to_hf()
+
+print("done! 🎉")
