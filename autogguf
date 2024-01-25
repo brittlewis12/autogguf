@@ -107,6 +107,7 @@ parser.add_argument('--pad-vocab', '-pv', action='store_true', help='Pad the voc
 parser.add_argument('--skip-fp16', action='store_true', help='Skip converting the model to FP16. Defaults to false.')
 parser.add_argument('--skip-download', action='store_true', help='Skip downloading the model to convert from HuggingFace Hub. Defaults to false.')
 parser.add_argument('--skip-upload', action='store_true', help='Skip uploading converted files to HuggingFace Hub. Defaults to false.')
+parser.add_argument('--only-upload', action='store_true', help='Upload the .gguf files in the current directory to HuggingFace Hub. Defaults to false.')
 parser.add_argument('--no-accelerator', '-n', action='store_true', help='Disable GPU acceleration for llama.cpp compilation. Only takes effect when installing or updating llama.cpp. Defaults to false.')
 parser.add_argument('--update-llama', '-u', action='store_true', help='Update the llama.cpp repo before converting. Installs llama.cpp if llama-path doesn’t exist. Defaults to false.')
 parser.add_argument('--llama-path', '-lp',  type=str, default='~/code/llama.cpp', help='The path to the llama.cpp repo.')
@@ -137,35 +138,36 @@ if args.update_llama:
 if args.verbose:
     sh('pwd')
 
-if args.skip_download:
+if args.skip_download or args.only_upload:
     print('🤗 skipping download from HuggingFace Hub.')
 else:
     download_model()
     if args.verbose:
         print(f"🤗 downloaded {MODEL_NAME}!")
 
-if args.skip_fp16:
+if args.skip_fp16 or args.only_upload:
     print('skipping FP16 conversion.')
 else:
     convert_fp16(type=args.model_type, vocab_type=args.vocab_type)
 
-if imatrix_quants != []:
+if imatrix_quants != [] and not args.only_upload:
     generate_imatrix()
 
 # Qu-Qu-Qu-Quantize Time!
 # TODO: can this be paralellized...?
 # TODO: progress bar!
-for level in quants:
-    if args.verbose:
-        print(f"🪄 quantizing {MODEL_NAME} to {level}...")
-    qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-    sh(f"{LLAMA_PATH}/quantize {FP16} {qtype} {level}")
+if not args.only_upload:
+    for level in quants:
+        if args.verbose:
+            print(f"🪄 quantizing {MODEL_NAME} to {level}...")
+        qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
+        sh(f"{LLAMA_PATH}/quantize {FP16} {qtype} {level}")
 
-for level in imatrix_quants:
-    if args.verbose:
-        print(f"🪄 quantizing {MODEL_NAME} to {level}...")
-    qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-    sh(f"{LLAMA_PATH}/quantize --imatrix {MODEL_NAME}.imatrix {FP16} {qtype} {level}")
+    for level in imatrix_quants:
+        if args.verbose:
+            print(f"🪄 quantizing {MODEL_NAME} to {level}...")
+        qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
+        sh(f"{LLAMA_PATH}/quantize --imatrix {MODEL_NAME}.imatrix {FP16} {qtype} {level}")
 
 if args.skip_upload:
     print("🤗 skipping upload to HuggingFace Hub.")

@@ -24,8 +24,9 @@ $ ./autogguf -h
 $ ./autogguf -h
 usage: autogguf [-h] [--quants QUANTS] [--verbose] [--model-type MODEL_TYPE]
                 [--vocab-type VOCAB_TYPE] [--pad-vocab] [--skip-fp16]
-                [--skip-download] [--skip-upload] [--no-accelerator] [--update-llama]
-                [--llama-path LLAMA_PATH] [--hf-user HF_USER] [--hf-token HF_TOKEN]
+                [--skip-download] [--skip-upload] [--only-upload] [--no-accelerator]
+                [--update-llama] [--llama-path LLAMA_PATH] [--hf-user HF_USER]
+                [--hf-token HF_TOKEN]
                 model_id
 
 convert HuggingFace models to GGUF, automatically.
@@ -54,6 +55,8 @@ options:
                         Defaults to false.
   --skip-upload         Skip uploading converted files to HuggingFace Hub. Defaults
                         to false.
+  --only-upload         Upload the .gguf files in the current directory to HuggingFace
+                        Hub. Defaults to false.
   --no-accelerator, -n  Disable GPU acceleration for llama.cpp compilation. Only
                         takes effect when installing or updating llama.cpp. Defaults
                         to false.
