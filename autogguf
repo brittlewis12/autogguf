@@ -40,12 +40,12 @@ def update_llama_cpp():
 def download_model():
     sh(f"mkdir {MODEL_NAME}")
     if args.verbose:
-        print(f"downloading {MODEL_NAME}...")
+        print(f"🤗 downloading {MODEL_NAME}...")
     snapshot_download(repo_id=MODEL_ID, local_dir=f"./{MODEL_NAME}/", local_dir_use_symlinks=False)
 
 def convert_fp16(type="llama", vocab_type=None):
     if args.verbose:
-        print(f"converting {MODEL_NAME} to FP16...")
+        print(f"🪄 converting {MODEL_NAME} to FP16...")
     if type == "llama" or type == "mistral":
         pad_vocab = " --pad-vocab" if args.pad_vocab else ""
         vocab_type = f" --vocab-type {vocab_type}" if vocab_type != None else ""
@@ -56,19 +56,19 @@ def convert_fp16(type="llama", vocab_type=None):
 # build importance matrix with FP16 model & a calibration dataset; required for `IQ2_*` or `Q2_K_S` quants
 def generate_imatrix():
     if args.verbose:
-        print(f"downloading wikitext-2...")
+        print(f"🌐 downloading wikitext-2...")
     sh(f"{LLAMA_PATH}/scripts/get-wikitext-2.sh && unzip wikitext-2-raw-v1.zip && rm wikitext-2-raw-v1.zip")
     if args.verbose:
-        print(f"generating imatrix for {MODEL_NAME}...")
+        print(f"⚖️ generating imatrix for {MODEL_NAME}...")
     sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f wikitext-2-raw/wiki.train.raw -o {MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
     if args.verbose:
-        print(f"cleaning up wikitext...")
+        print(f"🧹 cleaning up wikitext...")
     sh(f"rm -rf wikitext-2-raw")
 
 # 🤗 Upload to HuggingFace Hub
 def upload_ggufs_to_hf():
     if args.verbose:
-        print(f"uploading {MODEL_NAME} to HuggingFace Hub...")
+        print(f"🤗 uploading {MODEL_NAME} to HuggingFace Hub...")
     token = args.hf_token or os.environ.get('HF_TOKEN')
     api = HfApi(token=token)
     repo_id = f"{args.hf_user}/{MODEL_NAME}-GGUF"
@@ -138,11 +138,11 @@ if args.verbose:
     sh('pwd')
 
 if args.skip_download:
-    print('skipping download from HuggingFace Hub.')
+    print('🤗 skipping download from HuggingFace Hub.')
 else:
     download_model()
     if args.verbose:
-        print(f"downloaded {MODEL_NAME}!")
+        print(f"🤗 downloaded {MODEL_NAME}!")
 
 if args.skip_fp16:
     print('skipping FP16 conversion.')
@@ -157,19 +157,19 @@ if imatrix_quants != []:
 # TODO: progress bar!
 for level in quants:
     if args.verbose:
-        print(f"quantizing {MODEL_NAME} to {level}...")
+        print(f"🪄 quantizing {MODEL_NAME} to {level}...")
     qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
     sh(f"{LLAMA_PATH}/quantize {FP16} {qtype} {level}")
 
 for level in imatrix_quants:
     if args.verbose:
-        print(f"quantizing {MODEL_NAME} to {level}...")
+        print(f"🪄 quantizing {MODEL_NAME} to {level}...")
     qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
     sh(f"{LLAMA_PATH}/quantize --imatrix {MODEL_NAME}.imatrix {FP16} {qtype} {level}")
 
 if args.skip_upload:
-    print("skipping upload to HuggingFace Hub.")
+    print("🤗 skipping upload to HuggingFace Hub.")
 else:
     upload_ggufs_to_hf()
 
-print("done! 🎉")
+print("🎉 done!")
