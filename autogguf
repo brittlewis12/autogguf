@@ -104,7 +104,7 @@ parser.add_argument('--verbose', '-v', action='store_true', help='Increase outpu
 parser.add_argument('--model-type', '-m', type=str, default='llama', help='The model architecture type. `llama` (default), `mistral`, or anything else.')
 parser.add_argument('--vocab-type', '-vt', type=str, default=None, help='The model vocabulary type: `spm`, `hfft`, `bpe`, or None (default). Ignored for model-type of `llama` or `mistral`.')
 parser.add_argument('--pad-vocab', '-pv', action='store_true', help='Pad the vocabulary in case of mismatches. Defaults to false.')
-parser.add_argument('--skip-fp16', action='store_true', help='Skip converting the model to FP16. Defaults to false.')
+parser.add_argument('--fp16', type=str, help='Path to fp16 GGUF file for quantization. Implies skipping conversion of to FP16.')
 parser.add_argument('--skip-download', action='store_true', help='Skip downloading the model to convert from HuggingFace Hub. Defaults to false.')
 parser.add_argument('--skip-upload', action='store_true', help='Skip uploading converted files to HuggingFace Hub. Defaults to false.')
 parser.add_argument('--only-upload', action='store_true', help='Upload the .gguf files in the current directory to HuggingFace Hub. Defaults to false.')
@@ -121,7 +121,7 @@ if args.verbose:
 LLAMA_PATH = os.path.expanduser(args.llama_path)
 MODEL_ID = args.model_id # e.g. stabilityai/stablelm-2-zephyr-1_6b
 MODEL_NAME = MODEL_ID.split('/')[-1]
-FP16 = os.path.join(MODEL_NAME, f"{MODEL_NAME.lower()}.fp16.gguf")
+FP16 = args.fp16 or os.path.join(MODEL_NAME, f"{MODEL_NAME.lower()}.fp16.gguf")
 requested_quants = args.quants.replace(' ', '').split(',')
 
 quants = [ql for ql in requested_quants if ql in NORMAL_QUANT_LEVELS]
@@ -145,7 +145,7 @@ else:
     if args.verbose:
         print(f"🤗 downloaded {MODEL_NAME}!")
 
-if args.skip_fp16 or args.only_upload:
+if args.fp16 or args.only_upload:
     print('skipping FP16 conversion.')
 else:
     convert_fp16(type=args.model_type, vocab_type=args.vocab_type)
