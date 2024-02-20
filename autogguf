@@ -8,12 +8,22 @@ import platform
 from huggingface_hub import snapshot_download, create_repo, HfApi
 
 def sh(command):
-    output = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if output.returncode != 0:
-        sys.stderr.write(f"Error: {output.stderr}\n")
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True, universal_newlines=True)
+    if process.stdout is None:
+        sys.stderr.write(f"Error: failed to capture stdout for {command}\n")
+    else:
+        try:
+            for line in process.stdout:
+                if args.verbose:
+                    print(line, end='')
+        except Exception as e:
+            sys.stderr.write(f"Error while reading output: {e}\n")
+
+    process.wait()
+
+    if process.returncode != 0:
+        sys.stderr.write(f"Error: failed with return code {process.returncode}\n")
         exit(1)
-    elif args.verbose:
-        print(output.stdout)
 
 def update_llama_cpp():
     if args.no_accelerator:
