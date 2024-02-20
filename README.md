@@ -23,7 +23,7 @@ $ ./autogguf -h
 ```sh
 $ ./autogguf -h
 usage: autogguf [-h] [--quants QUANTS] [--verbose] [--model-type MODEL_TYPE]
-                [--vocab-type VOCAB_TYPE] [--pad-vocab] [--skip-fp16]
+                [--vocab-type VOCAB_TYPE] [--pad-vocab] [--fp16 FP16]
                 [--skip-download] [--skip-upload] [--only-upload] [--no-accelerator]
                 [--update-llama] [--llama-path LLAMA_PATH] [--hf-user HF_USER]
                 [--hf-token HF_TOKEN]
@@ -50,7 +50,8 @@ options:
                         The model vocabulary type: `spm`, `hfft`, `bpe`, or None
                         (default). Ignored for model-type of `llama` or `mistral`.
   --pad-vocab, -pv      Pad the vocabulary in case of mismatches. Defaults to false.
-  --skip-fp16           Skip converting the model to FP16. Defaults to false.
+  --fp16 FP16           Path to fp16 GGUF file for quantization. Implies
+                        skipping conversion of to FP16.
   --skip-download       Skip downloading the model to convert from HuggingFace Hub.
                         Defaults to false.
   --skip-upload         Skip uploading converted files to HuggingFace Hub. Defaults
