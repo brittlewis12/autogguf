@@ -112,7 +112,7 @@ parser.add_argument('--quants', '-q', type=str, default='q2_k,q3_k_s,q3_k_m,q3_k
 
 parser.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity.')
 parser.add_argument('--model-type', '-m', type=str, default='llama', help='The model architecture type. `llama` (default), `mistral`, or anything else.')
-parser.add_argument('--vocab-type', '-vt', type=str, default=None, help='The model vocabulary type: `spm`, `hfft`, `bpe`, or None (default). Ignored for model-type of `llama` or `mistral`.')
+parser.add_argument('--vocab-type', '-vt', type=str, default=None, help='The model vocabulary type: `spm`, `hfft`, `bpe`, or None (default). Ignored for model-type other than `llama` or `mistral`.')
 parser.add_argument('--pad-vocab', '-pv', action='store_true', help='Pad the vocabulary in case of mismatches. Defaults to false.')
 parser.add_argument('--fp16', type=str, help='Path to fp16 GGUF file for quantization. Implies skipping conversion of to FP16.')
 parser.add_argument('--skip-download', action='store_true', help='Skip downloading the model to convert from HuggingFace Hub. Defaults to false.')
