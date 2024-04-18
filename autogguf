@@ -66,14 +66,14 @@ def convert_fp16(type="llama", vocab_type=None):
 # build importance matrix with FP16 model & a calibration dataset; required for `IQ2_*` or `Q2_K_S` quants
 def generate_imatrix():
     if args.verbose:
-        print(f"🌐 downloading wikitext-2...")
-    sh(f"{LLAMA_PATH}/scripts/get-wikitext-2.sh && unzip wikitext-2-raw-v1.zip && rm wikitext-2-raw-v1.zip")
+        print(f"🌐 downloading calibration dataset...")
+    sh(f"wget https://github.com/ggerganov/llama.cpp/files/14194570/groups_merged.txt")
     if args.verbose:
         print(f"⚖️ generating imatrix for {MODEL_NAME}...")
-    sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f wikitext-2-raw/wiki.train.raw -o {MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
+    sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f groups_merged.txt -o {MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
     if args.verbose:
-        print(f"🧹 cleaning up wikitext...")
-    sh(f"rm -rf wikitext-2-raw")
+        print(f"🧹 cleaning up caliration dataset...")
+    sh(f"rm groups_merged.txt")
 
 # 🤗 Upload to HuggingFace Hub
 def upload_ggufs_to_hf():
@@ -100,7 +100,8 @@ def upload_ggufs_to_hf():
     )
 
 NORMAL_QUANT_LEVELS = ["q2_k","q3_k_s","q3_k_m","q3_k_l","q4_0","q4_1","q4_k_s","q4_k_m","q5_0","q5_1","q5_k_s","q5_k_m","q6_k","q8_0"]
-IMATRIX_QUANT_LEVELS = ["iq2_xxs","iq2_xs","q2_k_s"]
+IMATRIX_QUANT_LEVELS = ["iq1_s","iq1_m","iq2_xxs","iq2_xs","iq2_s","iq2_m","q2_k_s","iq3_xxs","iq3_xs","iq3_s","iq3_m","iq4_xs","iq4_nl"]
+ALL_QUANT_LEVELS_STR = ",".join([f"`{q}`" for q in NORMAL_QUANT_LEVELS + IMATRIX_QUANT_LEVELS])
 
 parser = argparse.ArgumentParser(description='convert HuggingFace models to GGUF, automatically.')
 
@@ -108,8 +109,7 @@ parser = argparse.ArgumentParser(description='convert HuggingFace models to GGUF
 parser.add_argument('model_id', type=str, help='The HuggingFace model ID to convert. Required.')
 
 # OPTIONAL
-parser.add_argument('--quants', '-q', type=str, default='q2_k,q3_k_s,q3_k_m,q3_k_l,q4_k_s,q4_k_m,q5_k_s,q5_k_m,q6_k,q8_0', help='Comma-separated list of quant levels to convert. Defaults to all non-imatrix k-quants and 8_0.\nAll quantization levels: `q2_k`, `q2_k_s` `q3_k_l`, `q3_k_m`, `q3_k_s`, `q4_0`, `q4_1`, `q4_k_m`, `q4_k_s`, `q5_0`, `q5_1`, `q5_k_m`, `q5_k_s`, `q6_k`, `q8_0`, `iq2_xxs`, `iq2_xs`.')
-
+parser.add_argument('--quants', '-q', type=str, default='q2_k,q3_k_s,q3_k_m,q3_k_l,q4_k_s,q4_k_m,q5_k_s,q5_k_m,q6_k,q8_0', help="Comma-separated list of quant levels to convert. Defaults to all non-imatrix k-quants and 8_0. All quantization levels: " + ALL_QUANT_LEVELS_STR)
 parser.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity.')
 parser.add_argument('--model-type', '-m', type=str, default='llama', help='The model architecture type. `llama` (default), `mistral`, or anything else.')
 parser.add_argument('--vocab-type', '-vt', type=str, default=None, help='The model vocabulary type: `spm`, `hfft`, `bpe`, or None (default). Ignored for model-type other than `llama` or `mistral`.')
