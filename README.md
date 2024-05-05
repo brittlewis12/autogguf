@@ -1,4 +1,5 @@
 # autogguf[.py]
+
 Automatically convert HuggingFace models to GGUF
 
 inspired by [mlabonne](https://twitter.com/maximelabonne/status/1746812715606348138)’s [AutoGGUF.ipynb](https://colab.research.google.com/drive/1P646NEg33BZy4BfLDNpTz0V0lwIU3CHu)
@@ -7,6 +8,8 @@ inspired by [mlabonne](https://twitter.com/maximelabonne/status/1746812715606348
 
 - Python 3
 - huggingface_hub: `pip3 install huggingface_hub`
+  - hf_transfer, for high bandwidth environments: `pip3 install hf_transfer`
+    - _set an environment variable:_ `HF_HUB_ENABLE_HF_TRANSFER=1`
 - llama.cpp: install or update with `./autogguf -u`
 
 ## Installation

@@ -70,7 +70,7 @@ def generate_imatrix():
     sh(f"wget https://github.com/ggerganov/llama.cpp/files/14194570/groups_merged.txt")
     if args.verbose:
         print(f"⚖️ generating imatrix for {MODEL_NAME}...")
-    sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f groups_merged.txt -o {MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
+    sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f groups_merged.txt -o {MODEL_NAME}/{MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
     if args.verbose:
         print(f"🧹 cleaning up caliration dataset...")
     sh(f"rm groups_merged.txt")
@@ -96,7 +96,7 @@ def upload_ggufs_to_hf():
     api.upload_folder(
         folder_path=MODEL_NAME,
         repo_id=repo_id,
-        allow_patterns=f"*.gguf" # allow_patterns=f"*.gguf,README.md"
+        allow_patterns=f"*.gguf,*.imatrix"
     )
 
 NORMAL_QUANT_LEVELS = ["q2_k","q3_k_s","q3_k_m","q3_k_l","q4_0","q4_1","q4_k_s","q4_k_m","q5_0","q5_1","q5_k_s","q5_k_m","q6_k","q8_0"]
@@ -175,7 +175,7 @@ if not args.only_upload:
         sh(f"{LLAMA_PATH}/quantize {FP16} {qtype} {level}")
 
     for level in imatrix_quants:
-        imatrix = args.imatrix or f"{MODEL_NAME}.imatrix"
+        imatrix = args.imatrix or f"{MODEL_NAME}/{MODEL_NAME}.imatrix"
         if args.verbose:
             print(f"🪄 quantizing {MODEL_NAME} to {level} with {imatrix}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
