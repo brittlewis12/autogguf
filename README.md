@@ -26,7 +26,7 @@ $ ./autogguf -h
 ```sh
 $ ./autogguf -h
 usage: autogguf [-h] [--quants QUANTS] [--verbose] [--model-type MODEL_TYPE]
-                [--vocab-type VOCAB_TYPE] [--pad-vocab] [--fp FP]
+                [--vocab-type VOCAB_TYPE] [--pad-vocab] [--fp FP] [--imatrix IMATRIX]
                 [--skip-download] [--skip-upload] [--only-upload] [--no-accelerator]
                 [--update-llama] [--llama-path LLAMA_PATH] [--hf-user HF_USER]
                 [--hf-token HF_TOKEN]
@@ -42,19 +42,23 @@ options:
   --quants QUANTS, -q QUANTS
                         Comma-separated list of quant levels to convert. Defaults to
                         all non-imatrix k-quants and 8_0. All quantization levels:
-                        `q2_k`, `q2_k_s` `q3_k_l`, `q3_k_m`, `q3_k_s`, `q4_0`,
-                        `q4_1`, `q4_k_m`, `q4_k_s`, `q5_0`, `q5_1`, `q5_k_m`,
-                        `q5_k_s`, `q6_k`, `q8_0`, `iq2_xxs`, `iq2_xs`.
+                        `q2_k`,`q3_k_s`,`q3_k_m`,`q3_k_l`,`q4_0`, `q4_1`,
+                        `q4_k_s`,`q4_k_m`,`q5_0`,`q5_1`,`q5_k_s`,`q5_k_m`,
+                        `q6_k`,`q8_0`,`iq1_s`,`iq1_m`,`iq2_xxs`,`iq2_xs`,
+                        `iq2_s`,`iq2_m`,`q2_k_s`,`iq3_xxs`,`iq3_xs`,`iq3 _s`,
+                        `iq3_m`,`iq4_xs`,`iq4_nl`
   --verbose, -v         Increase output verbosity.
   --model-type MODEL_TYPE, -m MODEL_TYPE
                         The model architecture type. `llama` (default), `mistral`, or
                         anything else.
   --vocab-type VOCAB_TYPE, -vt VOCAB_TYPE
                         The model vocabulary type: `spm`, `hfft`, `bpe`, or None
-                        (default). Ignored for model-type of `llama` or `mistral`.
+                        (default). Ignored for model-type other than `llama` or `mistral`.
   --pad-vocab, -pv      Pad the vocabulary in case of mismatches. Defaults to false.
   --fp FP               Path to fp16 or fp32 GGUF file for quantization. Implies
-                        skipping conversion of to FP16.
+                        skipping download and initial conversion to FP16.
+  --imatrix IMATRIX     Path to custom imatrix file for imatrix quantization. Skips
+                        downloading calibration dataset and generating imatrix.
   --skip-download       Skip downloading the model to convert from HuggingFace Hub.
                         Defaults to false.
   --skip-upload         Skip uploading converted files to HuggingFace Hub. Defaults
