@@ -59,18 +59,18 @@ def convert_fp16(type="llama", vocab_type=None):
     if type == "llama" or type == "mistral":
         pad_vocab = " --pad-vocab" if args.pad_vocab else ""
         vocab_type = f" --vocab-type {vocab_type}" if vocab_type != None else ""
-        sh(f"python3 {LLAMA_PATH}/convert.py {MODEL_NAME} --outtype f16 --outfile {FP16}{vocab_type}{pad_vocab}")
+        sh(f"python3 {LLAMA_PATH}/convert.py {MODEL_NAME} --outtype f16 --outfile {FP}{vocab_type}{pad_vocab}")
     else:
-        sh(f"python3 {LLAMA_PATH}/convert-hf-to-gguf.py {MODEL_NAME} --outtype f16 --outfile {FP16}")
+        sh(f"python3 {LLAMA_PATH}/convert-hf-to-gguf.py {MODEL_NAME} --outtype f16 --outfile {FP}")
 
-# build importance matrix with FP16 model & a calibration dataset; required for `IQ2_*` or `Q2_K_S` quants
+# build importance matrix with FP model & a calibration dataset; required for `IQ2_*` or `Q2_K_S` quants
 def generate_imatrix():
     if args.verbose:
         print(f"🌐 downloading calibration dataset...")
     sh(f"wget https://github.com/ggerganov/llama.cpp/files/14194570/groups_merged.txt")
     if args.verbose:
         print(f"⚖️ generating imatrix for {MODEL_NAME}...")
-    sh(f"{LLAMA_PATH}/imatrix -m {FP16} -f groups_merged.txt -o {MODEL_NAME}/{MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
+    sh(f"{LLAMA_PATH}/imatrix -m {FP} -f groups_merged.txt -o {MODEL_NAME}/{MODEL_NAME}.imatrix -t 7 -ngl 999 --chunks 2000")
     if args.verbose:
         print(f"🧹 cleaning up caliration dataset...")
     sh(f"rm groups_merged.txt")
@@ -114,7 +114,7 @@ parser.add_argument('--verbose', '-v', action='store_true', help='Increase outpu
 parser.add_argument('--model-type', '-m', type=str, default='llama', help='The model architecture type. `llama` (default), `mistral`, or anything else.')
 parser.add_argument('--vocab-type', '-vt', type=str, default=None, help='The model vocabulary type: `spm`, `hfft`, `bpe`, or None (default). Ignored for model-type other than `llama` or `mistral`.')
 parser.add_argument('--pad-vocab', '-pv', action='store_true', help='Pad the vocabulary in case of mismatches. Defaults to false.')
-parser.add_argument('--fp16', type=str, help='Path to fp16 GGUF file for quantization. Implies skipping download and initial conversion to FP16.')
+parser.add_argument('--fp', type=str, help='Path to fp16 or fp32 GGUF file for quantization. Implies skipping download and initial conversion to FP16.')
 parser.add_argument('--imatrix', type=str, help='Path to custom imatrix file for imatrix quantization. Skips downloading calibration dataset and generating imatrix.')
 parser.add_argument('--skip-download', action='store_true', help='Skip downloading the model to convert from HuggingFace Hub. Defaults to false.')
 parser.add_argument('--skip-upload', action='store_true', help='Skip uploading converted files to HuggingFace Hub. Defaults to false.')
@@ -132,7 +132,7 @@ if args.verbose:
 LLAMA_PATH = os.path.expanduser(args.llama_path)
 MODEL_ID = args.model_id # e.g. stabilityai/stablelm-2-zephyr-1_6b
 MODEL_NAME = MODEL_ID.split('/')[-1]
-FP16 = args.fp16 or os.path.join(MODEL_NAME, f"{MODEL_NAME.lower()}.fp16.gguf")
+FP = args.fp or os.path.join(MODEL_NAME, f"{MODEL_NAME.lower()}.fp16.gguf")
 requested_quants = args.quants.replace(' ', '').split(',')
 
 quants = [ql for ql in requested_quants if ql in NORMAL_QUANT_LEVELS]
@@ -149,14 +149,14 @@ if args.update_llama:
 if args.verbose:
     sh('pwd')
 
-if args.skip_download or args.only_upload or args.fp16:
+if args.skip_download or args.only_upload or args.fp:
     print('🤗 skipping download from HuggingFace Hub.')
 else:
     download_model()
     if args.verbose:
         print(f"🤗 downloaded {MODEL_NAME}!")
 
-if args.fp16 or args.only_upload:
+if args.fp or args.only_upload:
     print('skipping FP16 conversion.')
 else:
     convert_fp16(type=args.model_type, vocab_type=args.vocab_type)
@@ -172,14 +172,14 @@ if not args.only_upload:
         if args.verbose:
             print(f"🪄 quantizing {MODEL_NAME} to {level}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-        sh(f"{LLAMA_PATH}/quantize {FP16} {qtype} {level}")
+        sh(f"{LLAMA_PATH}/quantize {FP} {qtype} {level}")
 
     for level in imatrix_quants:
         imatrix = args.imatrix or f"{MODEL_NAME}/{MODEL_NAME}.imatrix"
         if args.verbose:
             print(f"🪄 quantizing {MODEL_NAME} to {level} with {imatrix}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-        sh(f"{LLAMA_PATH}/quantize --imatrix {imatrix} {FP16} {qtype} {level}")
+        sh(f"{LLAMA_PATH}/quantize --imatrix {imatrix} {FP} {qtype} {level}")
 
 if args.skip_upload:
     print("🤗 skipping upload to HuggingFace Hub.")
