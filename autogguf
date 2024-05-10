@@ -96,7 +96,7 @@ def upload_ggufs_to_hf():
     api.upload_folder(
         folder_path=MODEL_NAME,
         repo_id=repo_id,
-        allow_patterns=f"*.gguf,*.imatrix"
+        allow_patterns=[f"*.gguf","*.imatrix"],
     )
 
 FULL_PRECISION_QUANT_LEVELS = ["f16","f32"]
@@ -135,7 +135,7 @@ LLAMA_PATH = os.path.expanduser(args.llama_path)
 MODEL_ID = args.model_id # e.g. stabilityai/stablelm-2-zephyr-1_6b
 MODEL_NAME = MODEL_ID.split('/')[-1]
 PRECISION = 'f16'
-if args.full_precision.lower() == 'f16':
+if args.full_precision.lower() == 'f32':
     PRECISION = 'f32'
 else:
     if args.verbose and args.full_precision.lower() not in FULL_PRECISION_QUANT_LEVELS:
