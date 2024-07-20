@@ -25,8 +25,8 @@ $ ./autogguf -h
 
 ```sh
 $ ./autogguf -h
-usage: autogguf [-h] [--quants QUANTS] [--verbose] [--model-type MODEL_TYPE]
-                [--vocab-type VOCAB_TYPE] [--pad-vocab] [--fp FP] [--imatrix IMATRIX]
+usage: autogguf [-h] [--quants QUANTS] [--verbose]
+                [--full-precision FULL_PRECISION] [--fp FP] [--imatrix IMATRIX]
                 [--skip-download] [--skip-upload] [--only-upload] [--no-accelerator]
                 [--update-llama] [--llama-path LLAMA_PATH] [--hf-user HF_USER]
                 [--hf-token HF_TOKEN]
@@ -42,19 +42,15 @@ options:
   --quants QUANTS, -q QUANTS
                         Comma-separated list of quant levels to convert. Defaults to
                         all non-imatrix k-quants and 8_0. All quantization levels:
-                        `q2_k`,`q3_k_s`,`q3_k_m`,`q3_k_l`,`q4_0`, `q4_1`,
+                        `q2_k`,`q3_k_s`,`q3_k_m`,`q3_k_l`,`q4_0`,`q4_1`,
                         `q4_k_s`,`q4_k_m`,`q5_0`,`q5_1`,`q5_k_s`,`q5_k_m`,
-                        `q6_k`,`q8_0`,`iq1_s`,`iq1_m`,`iq2_xxs`,`iq2_xs`,
-                        `iq2_s`,`iq2_m`,`q2_k_s`,`iq3_xxs`,`iq3_xs`,`iq3 _s`,
-                        `iq3_m`,`iq4_xs`,`iq4_nl`
+                        `q6_k`,`q8_0`,`bf16`,`iq1_s`,`iq1_m`,`iq2_xxs`,
+                        `iq2_xs`,`iq2_s`,`iq2_m`,`q2_k_s`,`iq3_xxs`,
+                        `iq3_xs`,`iq3_s`,`iq3_m`,`iq4_xs`,`iq4_nl`
   --verbose, -v         Increase output verbosity.
-  --model-type MODEL_TYPE, -m MODEL_TYPE
-                        The model architecture type. `llama` (default), `mistral`, or
-                        anything else.
-  --vocab-type VOCAB_TYPE, -vt VOCAB_TYPE
-                        The model vocabulary type: `spm`, `hfft`, `bpe`, or None
-                        (default). Ignored for model-type other than `llama` or `mistral`.
-  --pad-vocab, -pv      Pad the vocabulary in case of mismatches. Defaults to false.
+  --full-precision FULL_PRECISION
+                        The full precision GGUF format to convert to and quantize
+                        from. `f16` (default) or `f32`.
   --fp FP               Path to fp16 or fp32 GGUF file for quantization. Implies
                         skipping download and initial conversion to FP16.
   --imatrix IMATRIX     Path to custom imatrix file for imatrix quantization. Skips
