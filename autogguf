@@ -51,7 +51,7 @@ def download_model():
     sh(f"mkdir {MODEL_NAME}")
     if args.verbose:
         print(f"🤗 downloading {MODEL_NAME}...")
-    snapshot_download(repo_id=MODEL_ID, local_dir=f"./{MODEL_NAME}/", local_dir_use_symlinks=False)
+    snapshot_download(repo_id=MODEL_ID, local_dir=f"./{MODEL_NAME}/")
 
 def convert_fp(type="llama", vocab_type=None):
     if args.verbose:
