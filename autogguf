@@ -185,7 +185,8 @@ if not args.only_upload:
         if args.verbose:
             print(f"🪄 quantizing {MODEL_NAME} to {level}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-        sh(f"{LLAMA_PATH}/llama-quantize {FP} {qtype} {level}")
+        sh(f"{LLAMA_PATH}/llama-quantize {FP} {qtype}.pending {level}")
+        sh(f"mv {qtype}.pending {qtype}")
         if args.skip_upload:
             if args.verbose:
                 print("🤗 skipping upload to HuggingFace Hub.")
@@ -204,7 +205,8 @@ if not args.only_upload:
         if args.verbose:
             print(f"🪄 quantizing {MODEL_NAME} to {level} with {imatrix}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-        sh(f"{LLAMA_PATH}/llama-quantize --imatrix {imatrix} {FP} {qtype} {level}")
+        sh(f"{LLAMA_PATH}/llama-quantize --imatrix {imatrix} {FP} {qtype}.pending {level}")
+        sh(f"mv {qtype}.pending {qtype}")
         if args.skip_upload:
             if args.verbose:
                 print("🤗 skipping upload to HuggingFace Hub.")
