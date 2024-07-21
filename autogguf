@@ -88,11 +88,15 @@ def upload_ggufs_to_hf():
     # TODO: Generate a README from a template!
 
     # Upload only gguf files
-    api.upload_folder(
+    fut = api.upload_folder(
         folder_path=MODEL_NAME,
         repo_id=repo_id,
         allow_patterns=[f"*.gguf","*.imatrix"],
+        run_as_future=True,
     )
+    if args.verbose:
+        fut.add_done_callback(lambda fut: print(f"🤗 uploaded {MODEL_NAME} to HuggingFace Hub!\n    commit info: {fut.result()}"))
+    return fut
 
 FULL_PRECISION_QUANT_LEVELS = ["f16","f32"]
 NORMAL_QUANT_LEVELS = ["q2_k","q3_k_s","q3_k_m","q3_k_l","q4_0","q4_1","q4_k_s","q4_k_m","q5_0","q5_1","q5_k_s","q5_k_m","q6_k","q8_0", "bf16"]
@@ -168,6 +172,11 @@ else:
 if imatrix_quants != [] and not args.only_upload and not args.imatrix:
     generate_imatrix()
 
+internal = {
+    'upload_futs': [],
+    'needs_upload': False,
+    'uploading': False,
+}
 # Qu-Qu-Qu-Quantize Time!
 # TODO: can this be paralellized...?
 # TODO: progress bar!
@@ -177,6 +186,18 @@ if not args.only_upload:
             print(f"🪄 quantizing {MODEL_NAME} to {level}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
         sh(f"{LLAMA_PATH}/llama-quantize {FP} {qtype} {level}")
+        if args.skip_upload:
+            if args.verbose:
+                print("🤗 skipping upload to HuggingFace Hub.")
+        else:
+            if internal['uploading']:
+                internal['needs_upload'] = True
+            else:
+                internal['uploading'] = True
+                internal['needs_upload'] = False
+                fut = upload_ggufs_to_hf()
+                fut.add_done_callback(lambda f: internal.__setitem__('uploading', False))
+                internal['upload_futs'].append(fut)
 
     for level in imatrix_quants:
         imatrix = args.imatrix or f"{MODEL_NAME}/{MODEL_NAME}.imatrix"
@@ -184,10 +205,24 @@ if not args.only_upload:
             print(f"🪄 quantizing {MODEL_NAME} to {level} with {imatrix}...")
         qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
         sh(f"{LLAMA_PATH}/llama-quantize --imatrix {imatrix} {FP} {qtype} {level}")
+        if args.skip_upload:
+            if args.verbose:
+                print("🤗 skipping upload to HuggingFace Hub.")
+        else:
+            if internal['uploading']:
+                internal['needs_upload'] = True
+            else:
+                internal['uploading'] = True
+                internal['needs_upload'] = False
+                fut = upload_ggufs_to_hf()
+                fut.add_done_callback(lambda f: internal.__setitem__('uploading', False))
+                internal['upload_futs'].append(fut)
 
-if args.skip_upload:
-    print("🤗 skipping upload to HuggingFace Hub.")
-else:
-    upload_ggufs_to_hf()
+if not args.skip_upload:
+    for fut in internal['upload_futs']:
+        fut.result()
+
+    if internal['needs_upload']:
+        upload_ggufs_to_hf().result()
 
 print("🎉 done!")
