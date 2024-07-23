@@ -5,6 +5,7 @@ import os
 import sys
 import argparse
 import platform
+import multiprocessing
 from huggingface_hub import snapshot_download, create_repo, HfApi
 
 def sh(command):
@@ -88,15 +89,29 @@ def upload_ggufs_to_hf():
     # TODO: Generate a README from a template!
 
     # Upload only gguf files
-    fut = api.upload_folder(
+    result = api.upload_folder(
         folder_path=MODEL_NAME,
         repo_id=repo_id,
         allow_patterns=[f"*.gguf","*.imatrix"],
-        run_as_future=True,
     )
     if args.verbose:
-        fut.add_done_callback(lambda fut: print(f"🤗 uploaded {MODEL_NAME} to HuggingFace Hub!\n    commit info: {fut.result()}"))
-    return fut
+        print(f"🤗 uploaded {MODEL_NAME} to HuggingFace Hub!\n    commit info: {result}")
+
+def upload_worker(task_queue, upload_busy, ready_event):
+    ready_event.set()
+    while True:
+        task = task_queue.get()
+        if task is None:
+            break
+
+        with upload_busy.get_lock():
+            upload_busy.value = True
+
+        upload_ggufs_to_hf()
+
+        with upload_busy.get_lock():
+            upload_busy.value = False
+
 
 FULL_PRECISION_QUANT_LEVELS = ["f16","f32"]
 NORMAL_QUANT_LEVELS = ["q2_k","q3_k_s","q3_k_m","q3_k_l","q4_0","q4_1","q4_k_s","q4_k_m","q5_0","q5_1","q5_k_s","q5_k_m","q6_k","q8_0", "bf16"]
@@ -124,8 +139,6 @@ parser.add_argument('--hf-user', type=str, default='brittlewis12', help='Your Hu
 parser.add_argument('--hf-token', type=str, default=None, help='Your HuggingFace API token for uploading converted models. Reads from `$HF_TOKEN` by default.')
 
 args = parser.parse_args()
-if args.verbose:
-    print(f"Got args: {args}\n")
 
 LLAMA_PATH = os.path.expanduser(args.llama_path)
 MODEL_ID = args.model_id # e.g. stabilityai/stablelm-2-zephyr-1_6b
@@ -151,80 +164,87 @@ if imatrix_quants != []:
 else:
     print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)}\n")
 
-if args.update_llama:
-    update_llama_cpp()
-
-if args.verbose:
-    sh('pwd')
-
-if args.skip_download or args.only_upload or args.fp:
-    print('🤗 skipping download from HuggingFace Hub.')
-else:
-    download_model()
+def main():
     if args.verbose:
-        print(f"🤗 downloaded {MODEL_NAME}!")
+        print(f"Got args: {args}\n")
 
-if args.fp or args.only_upload:
-    print(f"skipping {precision_label.upper()} conversion.")
-else:
-    convert_fp()
+    if args.update_llama:
+        update_llama_cpp()
 
-if imatrix_quants != [] and not args.only_upload and not args.imatrix:
-    generate_imatrix()
+    if args.verbose:
+        sh('pwd')
 
-internal = {
-    'upload_futs': [],
-    'needs_upload': False,
-    'uploading': False,
-}
-# Qu-Qu-Qu-Quantize Time!
-# TODO: can this be paralellized...?
-# TODO: progress bar!
-if not args.only_upload:
-    for level in quants:
+    if args.skip_download or args.only_upload or args.fp:
+        print('🤗 skipping download from HuggingFace Hub.')
+    else:
+        download_model()
         if args.verbose:
-            print(f"🪄 quantizing {MODEL_NAME} to {level}...")
-        qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-        sh(f"{LLAMA_PATH}/llama-quantize {FP} {qtype}.pending {level}")
-        sh(f"mv {qtype}.pending {qtype}")
-        if args.skip_upload:
+            print(f"🤗 downloaded {MODEL_NAME}!")
+
+    if args.fp or args.only_upload:
+        print(f"skipping {precision_label.upper()} conversion.")
+    else:
+        convert_fp()
+
+    if imatrix_quants != [] and not args.only_upload and not args.imatrix:
+        generate_imatrix()
+
+    needs_upload = True if args.only_upload else False
+    upload_queue = multiprocessing.Queue()
+    upload_busy = multiprocessing.Value('b', False)
+    ready_event = multiprocessing.Event()
+    upload_worker_process = multiprocessing.Process(target=upload_worker, args=(upload_queue, upload_busy, ready_event))
+    upload_worker_process.start()
+    ready_event.wait()
+
+    # Qu-Qu-Qu-Quantize Time!
+    # TODO: can this be paralellized...?
+    # TODO: progress bar!
+    if not args.only_upload:
+        for level in quants:
             if args.verbose:
-                print("🤗 skipping upload to HuggingFace Hub.")
-        else:
-            if internal['uploading']:
-                internal['needs_upload'] = True
+                print(f"🪄 quantizing {MODEL_NAME} to {level}...")
+            qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
+            sh(f"{LLAMA_PATH}/llama-quantize {FP} {qtype}.pending {level}")
+            sh(f"mv {qtype}.pending {qtype}")
+            if args.skip_upload:
+                if args.verbose:
+                    print("🤗 skipping upload to HuggingFace Hub.")
             else:
-                internal['uploading'] = True
-                internal['needs_upload'] = False
-                fut = upload_ggufs_to_hf()
-                fut.add_done_callback(lambda f: internal.__setitem__('uploading', False))
-                internal['upload_futs'].append(fut)
+                if upload_busy.value:
+                    needs_upload = True
+                else:
+                    upload_queue.put(True)
+                    needs_upload = False
 
-    for level in imatrix_quants:
-        imatrix = args.imatrix or f"{MODEL_NAME}/{MODEL_NAME}.imatrix"
-        if args.verbose:
-            print(f"🪄 quantizing {MODEL_NAME} to {level} with {imatrix}...")
-        qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
-        sh(f"{LLAMA_PATH}/llama-quantize --imatrix {imatrix} {FP} {qtype}.pending {level}")
-        sh(f"mv {qtype}.pending {qtype}")
-        if args.skip_upload:
+        for level in imatrix_quants:
+            imatrix = args.imatrix or f"{MODEL_NAME}/{MODEL_NAME}.imatrix"
             if args.verbose:
-                print("🤗 skipping upload to HuggingFace Hub.")
-        else:
-            if internal['uploading']:
-                internal['needs_upload'] = True
+                print(f"🪄 quantizing {MODEL_NAME} to {level} with {imatrix}...")
+            qtype = f"{MODEL_NAME}/{MODEL_NAME.lower()}.{level.upper()}.gguf"
+            sh(f"{LLAMA_PATH}/llama-quantize --imatrix {imatrix} {FP} {qtype}.pending {level}")
+            sh(f"mv {qtype}.pending {qtype}")
+            if args.skip_upload:
+                if args.verbose:
+                    print("🤗 skipping upload to HuggingFace Hub.")
             else:
-                internal['uploading'] = True
-                internal['needs_upload'] = False
-                fut = upload_ggufs_to_hf()
-                fut.add_done_callback(lambda f: internal.__setitem__('uploading', False))
-                internal['upload_futs'].append(fut)
+                if upload_busy.value:
+                    needs_upload = True
+                else:
+                    upload_queue.put(True)
+                    needs_upload = False
 
-if not args.skip_upload:
-    for fut in internal['upload_futs']:
-        fut.result()
+    if not args.skip_upload:
+        while needs_upload or upload_busy.value:
+            if not upload_busy.value:
+                upload_queue.put(True)
+                needs_upload = False
 
-    if internal['needs_upload']:
-        upload_ggufs_to_hf().result()
+    upload_queue.put(None)
+    upload_worker_process.join()
 
-print("🎉 done!")
+    print("🎉 done!")
+
+if __name__ == '__main__':
+    multiprocessing.freeze_support()
+    main()
