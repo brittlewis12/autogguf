@@ -27,23 +27,13 @@ def sh(command):
         exit(1)
 
 def update_llama_cpp():
-    if args.no_accelerator:
-        accelerator = ''
-        if args.verbose:
-            print("🐪 llama.cpp will be compiled without GPU acceleration.")
-    else:
-        accelerator = 'LLAMA_METAL=1' if platform.system() == 'Darwin' else 'LLAMA_CUBLAS=1'
-        if args.verbose:
-            accelerator_string = "Metal" if platform.system() == 'Darwin' else "CUDA"
-            print(f"🐪 llama.cpp will be compiled with {accelerator_string} acceleration.")
-
     if not os.path.exists(f"{LLAMA_PATH}"):
         if args.verbose:
             print(f"🐪 llama.cpp not found at {LLAMA_PATH}, installing...")
         sh(f"git clone https://github.com/ggerganov/llama.cpp {LLAMA_PATH}")
     if args.verbose:
         print("🐪 compiling llama.cpp...")
-    sh(f"cd {LLAMA_PATH} && git pull && make clean && {accelerator} make")
+    sh(f"cd {LLAMA_PATH} && git pull && make clean && make")
     if args.verbose:
         print("🐪 installing llama.cpp python deps...")
     sh(f"pip3 install -r {LLAMA_PATH}/requirements.txt")
@@ -126,13 +116,12 @@ parser.add_argument('model_id', type=str, help='The HuggingFace model ID to conv
 # OPTIONAL
 parser.add_argument('--quants', '-q', type=str, default='q2_k,q3_k_s,q3_k_m,q3_k_l,q4_k_s,q4_k_m,q5_k_s,q5_k_m,q6_k,q8_0', help="Comma-separated list of quant levels to convert. Defaults to all non-imatrix k-quants and 8_0. All quantization levels: " + ALL_QUANT_LEVELS_STR)
 parser.add_argument('--verbose', '-v', action='store_true', help='Increase output verbosity.')
-parser.add_argument('--full-precision', type=str, default='f16', help='The full precision GGUF format to convert to and quantize from. `f16` (default) or `f32`.')
-parser.add_argument('--fp', type=str, help='Path to fp16 or fp32 GGUF file for quantization. Implies skipping download and initial conversion to FP16.')
+parser.add_argument('--full-precision', type=str, default='f16', help='The full precision GGUF format to convert to and quantize from. `f16` (default), `bf16`, or `f32`.')
+parser.add_argument('--fp', type=str, help='Path to fp16, bf16 or fp32 GGUF file for quantization. Implies skipping download and initial conversion to FP16.')
 parser.add_argument('--imatrix', type=str, help='Path to custom imatrix file for imatrix quantization. Skips downloading calibration dataset and generating imatrix.')
 parser.add_argument('--skip-download', action='store_true', help='Skip downloading the model to convert from HuggingFace Hub. Defaults to false.')
 parser.add_argument('--skip-upload', action='store_true', help='Skip uploading converted files to HuggingFace Hub. Defaults to false.')
 parser.add_argument('--only-upload', action='store_true', help='Upload the .gguf files in the current directory to HuggingFace Hub. Defaults to false.')
-parser.add_argument('--no-accelerator', '-n', action='store_true', help='Disable GPU acceleration for llama.cpp compilation. Only takes effect when installing or updating llama.cpp. Defaults to false.')
 parser.add_argument('--update-llama', '-u', action='store_true', help='Update the llama.cpp repo before converting. Installs llama.cpp if llama-path doesn’t exist. Defaults to false.')
 parser.add_argument('--llama-path', '-lp',  type=str, default='~/code/llama.cpp', help='The path to the llama.cpp repo.')
 parser.add_argument('--hf-user', type=str, default='brittlewis12', help='Your HuggingFace username for uploading converted models.')
