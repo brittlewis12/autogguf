@@ -36,10 +36,10 @@ def update_llama_cpp():
     sh(f"cd {LLAMA_PATH} && git pull && make clean && make")
     if args.verbose:
         print("🐪 installing llama.cpp python deps...")
-    sh(f"pip3 install -r {LLAMA_PATH}/requirements.txt")
+    sh(f"pip3 install -r {LLAMA_PATH}/requirements.txt {'-v' if args.verbose else '-q'}")
 
 def download_model():
-    sh(f"mkdir {MODEL_NAME}")
+    sh(f"mkdir -p {MODEL_NAME}")
     if args.verbose:
         print(f"🤗 downloading {MODEL_NAME}...")
     snapshot_download(repo_id=MODEL_ID, local_dir=f"./{MODEL_NAME}/")
@@ -148,10 +148,11 @@ requested_quants = args.quants.replace(' ', '').split(',')
 quants = [ql for ql in requested_quants if ql in NORMAL_QUANT_LEVELS]
 imatrix_quants = [ql for ql in requested_quants if ql in IMATRIX_QUANT_LEVELS]
 
-if imatrix_quants != []:
-    print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)} and imatrix-required {', '.join(imatrix_quants)}\n")
-else:
-    print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)}\n")
+if not args.only_upload:
+    if imatrix_quants != []:
+        print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)} and imatrix-required {', '.join(imatrix_quants)}\n")
+    else:
+        print(f"🪄 Quantizing {MODEL_NAME} with {', '.join(quants)}\n")
 
 def main():
     if args.verbose:
@@ -159,9 +160,6 @@ def main():
 
     if args.update_llama:
         update_llama_cpp()
-
-    if args.verbose:
-        sh('pwd')
 
     if args.skip_download or args.only_upload or args.fp:
         print('🤗 skipping download from HuggingFace Hub.')
