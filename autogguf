@@ -103,7 +103,7 @@ def upload_worker(task_queue, upload_busy, ready_event):
             upload_busy.value = False
 
 
-FULL_PRECISION_QUANT_LEVELS = ["f16","f32"]
+FULL_PRECISION_QUANT_LEVELS = ["f16","f32","bf16"]
 NORMAL_QUANT_LEVELS = ["q2_k","q3_k_s","q3_k_m","q3_k_l","q4_0","q4_1","q4_k_s","q4_k_m","q5_0","q5_1","q5_k_s","q5_k_m","q6_k","q8_0", "bf16"]
 IMATRIX_QUANT_LEVELS = ["iq1_s","iq1_m","iq2_xxs","iq2_xs","iq2_s","iq2_m","q2_k_s","iq3_xxs","iq3_xs","iq3_s","iq3_m","iq4_xs","iq4_nl"]
 ALL_QUANT_LEVELS_STR = ",".join([f"`{q}`" for q in NORMAL_QUANT_LEVELS + IMATRIX_QUANT_LEVELS])
@@ -135,12 +135,14 @@ MODEL_NAME = MODEL_ID.split('/')[-1]
 PRECISION = 'f16'
 if args.full_precision.lower() == 'f32':
     PRECISION = 'f32'
+elif args.full_precision.lower() == 'bf16':
+    PRECISION = 'bf16'
 else:
     if args.verbose and args.full_precision.lower() not in FULL_PRECISION_QUANT_LEVELS:
         print(f"Invalid full precision format '{args.full_precision}'. Defaulting to f16.")
     PRECISION = 'f16'
 
-precision_label = 'fp16' if PRECISION == 'f16' else 'fp32'
+precision_label = 'fp16' if PRECISION == 'f16' else ('fp32' if PRECISION == 'f32' else PRECISION)
 
 FP = args.fp or os.path.join(MODEL_NAME, f"{MODEL_NAME.lower()}.{precision_label}.gguf")
 requested_quants = args.quants.replace(' ', '').split(',')
